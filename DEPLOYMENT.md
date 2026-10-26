@@ -2,7 +2,7 @@
 
 Repository: `Barwaqt/rider_web`. Domain: `rider.barwaqt.com`.
 Application directory: `/var/www/rider.barwaqt.com`.
-PM2 process: `barwaqt-rider`. Next.js listens on `127.0.0.1:3003` behind Nginx.
+PM2 process: `barwaqt-rider`, declared in `barwaqt-rider.config.cjs`. Next.js listens on `127.0.0.1:3003` behind Nginx. The Nginx site file is `deploy/rider.barwaqt.com`, copied to `/etc/nginx/sites-available/rider.barwaqt.com`.
 
 ## First-time setup on Ubuntu
 
@@ -32,7 +32,7 @@ Build and start the rider process:
 
 ```bash
 npm ci --include=dev
-npm run build && test -s .next/BUILD_ID && pm2 start ecosystem.config.cjs
+npm run build && test -s .next/BUILD_ID && pm2 start barwaqt-rider.config.cjs
 pm2 save
 pm2 startup
 curl -I http://127.0.0.1:3003/
@@ -44,7 +44,7 @@ Follow the startup command PM2 prints if needed. If a rider process already occu
 
 ### Application directory
 
-`/var/www/rider.barwaqt.com` must hold a checkout of `Barwaqt/rider_web` so `ecosystem.config.cjs`, `deploy/` and `scripts/deploy.sh` are present. If it still holds the static Coming Soon files instead, move them aside and clone into it:
+`/var/www/rider.barwaqt.com` must hold a checkout of `Barwaqt/rider_web` so `barwaqt-rider.config.cjs`, `deploy/` and `scripts/deploy.sh` are present. If it still holds the static Coming Soon files instead, move them aside and clone into it:
 
 ```bash
 mv /var/www/rider.barwaqt.com /root/rider-coming-soon-backup
@@ -71,7 +71,7 @@ Locate the existing block and check its contents before editing:
 grep -rn 'rider.barwaqt.com' /etc/nginx/sites-enabled/ /etc/nginx/conf.d/ 2>/dev/null
 ```
 
-Then convert that block's `location /` to the proxy from `deploy/rider.barwaqt.com.conf` (replace any `root`/`try_files`/`index` static serving), keeping its `listen` and `server_name` lines. Back it up first:
+Then convert that block's `location /` to the proxy from `deploy/rider.barwaqt.com` (replace any `root`/`try_files`/`index` static serving), keeping its `listen` and `server_name` lines. Back it up first:
 
 ```bash
 cp /etc/nginx/sites-available/<file> /root/<file>.coming-soon.bak
@@ -85,7 +85,7 @@ For a domain with no existing server block, use the checked-in config as-is:
 
 ```bash
 cd /var/www/rider.barwaqt.com
-cp deploy/rider.barwaqt.com.conf /etc/nginx/sites-available/rider.barwaqt.com
+cp deploy/rider.barwaqt.com /etc/nginx/sites-available/rider.barwaqt.com
 ln -s /etc/nginx/sites-available/rider.barwaqt.com /etc/nginx/sites-enabled/rider.barwaqt.com
 nginx -t && systemctl reload nginx
 certbot --nginx -d rider.barwaqt.com --redirect
