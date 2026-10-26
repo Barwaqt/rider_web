@@ -43,3 +43,7 @@ npm start
 ```
 
 History is paginated (20 assignments per page). Shift history uses the backend's latest 100 shifts. This is a browser app, not a native app or an offline/PWA delivery tracker.
+
+## CI/CD and production hosting
+
+Pushes to `main` automatically validate and deploy the rider portal to `/var/www/rider.barwaqt.com`, using PM2 (`barwaqt-rider`) on port 3003 behind Nginx at `https://rider.barwaqt.com`. Follow [Ubuntu, Nginx, HTTPS and GitHub setup](DEPLOYMENT.md) for the first deployment.

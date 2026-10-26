@@ -4,3 +4,7 @@ out/
 .env*
 !.env.example
 *.tsbuildinfo
+
+# Written by scripts/deploy.sh in the deployment directory.
+.deploy.lock
+.deployed-revision

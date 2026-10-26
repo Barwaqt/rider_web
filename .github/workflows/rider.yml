@@ -1,0 +1,78 @@
+name: Rider CI and deployment
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: node --test tests/*.test.mjs
+      - run: npm run build
+
+  deploy:
+    needs: test
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: production
+    concurrency:
+      group: rider-production
+      cancel-in-progress: false
+    env:
+      DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+      DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+      DEPLOY_PORT: ${{ vars.DEPLOY_PORT || '22' }}
+      PM2_APP_NAME: ${{ vars.PM2_APP_NAME || 'barwaqt-rider' }}
+      WEB_PORT: ${{ vars.WEB_PORT || '3003' }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          : "${DEPLOY_HOST:?Set DEPLOY_HOST secret}"
+          : "${DEPLOY_USER:?Set DEPLOY_USER secret}"
+          : "${SSH_PRIVATE_KEY:?Set DEPLOY_SSH_KEY secret}"
+          : "${SSH_KNOWN_HOSTS:?Set DEPLOY_KNOWN_HOSTS secret}"
+          : "${PM2_APP_NAME:?Set PM2_APP_NAME variable to the existing rider process name}"
+          [[ "$PM2_APP_NAME" =~ ^[a-zA-Z0-9][a-zA-Z0-9_.-]*$ ]]
+          [[ "$WEB_PORT" =~ ^[0-9]+$ ]]
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/id_ed25519 ~/.ssh/known_hosts
+      - name: Deploy tested revision
+        run: |
+          set -euo pipefail
+          archive="barwaqt-rider-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}.tar.gz"
+          git archive --format=tar.gz HEAD > "$RUNNER_TEMP/$archive"
+          scp -o BatchMode=yes -o StrictHostKeyChecking=yes -P "$DEPLOY_PORT" \
+            "$RUNNER_TEMP/$archive" "$DEPLOY_USER@$DEPLOY_HOST:/tmp/$archive"
+          ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -p "$DEPLOY_PORT" \
+            "$DEPLOY_USER@$DEPLOY_HOST" \
+            "bash -s -- /tmp/$archive $PM2_APP_NAME $WEB_PORT $GITHUB_SHA" < scripts/deploy.sh
+      - name: Verify public rider portal
+        run: curl --fail --silent --show-error --location --output /dev/null --retry 6 --retry-all-errors --retry-delay 5 --max-time 20 https://rider.barwaqt.com/
+      - name: Remove SSH credentials
+        if: always()
+        run: rm -f ~/.ssh/id_ed25519 ~/.ssh/known_hosts
