@@ -57,29 +57,27 @@ Keep the backup if the Coming Soon page should move to another hostname. The dep
 
 ## Nginx and HTTPS
 
-### This VPS already serves `rider.barwaqt.com`
+### The current state of `rider.barwaqt.com` on this VPS
 
-On `vmi3689694` the domain is already configured, so do **not** copy the checked-in config as a new server block:
+Measured against `vmi3689694`, not assumed:
 
 - DNS for `rider.barwaqt.com` already resolves to the VPS public IPv4.
-- Port 80 already serves a static **Coming Soon** page for this `server_name` from an existing Nginx server block (`text/html`, served from disk, no proxy).
-- Port 443 has **no certificate** for this domain. Requests currently fall through to the default server, which presents the `api.barwaqt.com` certificate, so `curl https://rider.barwaqt.com/` fails with a certificate-name error and returns the API's JSON.
+- **No** Nginx file declares `server_name rider.barwaqt.com`. The files in `/etc/nginx/sites-available` are `api.barwaqt.com`, `app.barwaqt.com`, `coming-soon`, `console.barwaqt.com`, `default` and `stagging.barwaqt.com`. `grep -Rn 'rider.barwaqt.com' /etc/nginx/` returns nothing.
+- Port 80 answers with the static **Coming Soon** page because that catch-all handles unmatched hosts. The `coming-soon` file is a separate setup: do not edit or delete it.
+- Port 443 has **no certificate** for this domain, so requests fall through to the default server and receive the `api.barwaqt.com` certificate. `curl https://rider.barwaqt.com/` fails with a certificate-name error.
 
-Locate the existing block and check its contents before editing:
-
-```bash
-grep -rn 'rider.barwaqt.com' /etc/nginx/sites-enabled/ /etc/nginx/conf.d/ 2>/dev/null
-```
-
-Then convert that block's `location /` to the proxy from `deploy/rider.barwaqt.com` (replace any `root`/`try_files`/`index` static serving), keeping its `listen` and `server_name` lines. Back it up first:
+**Create a new site file** named exactly `rider.barwaqt.com`:
 
 ```bash
-cp /etc/nginx/sites-available/<file> /root/<file>.coming-soon.bak
+cp /var/www/rider.barwaqt.com/deploy/rider.barwaqt.com /etc/nginx/sites-available/rider.barwaqt.com
+ln -s /etc/nginx/sites-available/rider.barwaqt.com /etc/nginx/sites-enabled/rider.barwaqt.com
 nginx -t && systemctl reload nginx
 curl -I http://rider.barwaqt.com/
 ```
 
-Finish with Certbot so `:443` gains a certificate for this host, then re-run the deployment workflow. Move the Coming Soon page to another hostname if it is still wanted; keep its files, since the deployment's `rsync` never deletes non-source files.
+An exact `server_name` match wins over the catch-all, so the Coming Soon page stops answering for this host without touching its file. Finish with Certbot so `:443` gains a certificate for this host, then re-run the deployment workflow.
+
+If `nginx -t` reports `conflicting server name "rider.barwaqt.com"`, another file also declares the domain. Remove just the domain from that file's `server_name` line and test again; do not delete the file. `SERVER-SETUP.md` has this as a numbered command sequence.
 
 For a domain with no existing server block, use the checked-in config as-is:
 
