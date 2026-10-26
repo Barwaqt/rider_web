@@ -79,7 +79,7 @@ An exact `server_name` match wins over the catch-all, so the Coming Soon page st
 
 If `nginx -t` reports `conflicting server name "rider.barwaqt.com"`, another file also declares the domain. Remove just the domain from that file's `server_name` line and test again; do not delete the file. `SERVER-SETUP.md` has this as a numbered command sequence.
 
-For a domain with no existing server block, use the checked-in config as-is:
+The complete recipe, including the certificate. `SERVER-SETUP.md` lists the same steps one command at a time:
 
 ```bash
 cd /var/www/rider.barwaqt.com
