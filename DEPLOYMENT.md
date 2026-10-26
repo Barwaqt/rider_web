@@ -14,8 +14,10 @@ Use the same account that owns the PM2 process (root in the existing VPS setup).
 apt-get update
 apt-get install -y nginx rsync curl util-linux certbot python3-certbot-nginx
 cd /var/www/rider.barwaqt.com
-# One-time update to obtain the newly committed deployment files:
-git pull origin main
+# One-time update to obtain the newly committed deployment files.
+# If this directory is not a checkout of Barwaqt/rider_web yet, see
+# "Application directory" below and clone first.
+git pull --ff-only origin main
 nano .env.local
 ```
 
@@ -40,12 +42,18 @@ Follow the startup command PM2 prints if needed. If a rider process already occu
 
 **This first `pm2 start` is required before the pipeline can deploy.** The workflow restarts the process, it does not create it, so until it exists the `deploy` job fails at `pm2 describe` with `[PM2][WARN] barwaqt-rider doesn't exist`.
 
-If `/var/www/rider.barwaqt.com` is not yet a Git checkout of `Barwaqt/rider_web` (for example it still holds the static Coming Soon files), clone into it so the deployment files are present:
+### Application directory
+
+`/var/www/rider.barwaqt.com` must hold a checkout of `Barwaqt/rider_web` so `ecosystem.config.cjs`, `deploy/` and `scripts/deploy.sh` are present. If it still holds the static Coming Soon files instead, move them aside and clone into it:
 
 ```bash
+mv /var/www/rider.barwaqt.com /root/rider-coming-soon-backup
+mkdir -p /var/www/rider.barwaqt.com
 cd /var/www/rider.barwaqt.com
 git clone https://github.com/Barwaqt/rider_web.git .
 ```
+
+Keep the backup if the Coming Soon page should move to another hostname. The deployment's `rsync` never deletes files that are not tracked in the repository.
 
 ## Nginx and HTTPS
 
