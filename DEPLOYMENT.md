@@ -38,11 +38,42 @@ curl -I http://127.0.0.1:3003/
 
 Follow the startup command PM2 prints if needed. If a rider process already occupies port 3003, use that existing process instead of starting another; set the GitHub `PM2_APP_NAME` variable to its exact name. Existing processes must use production `next start`, not `next dev`.
 
+**This first `pm2 start` is required before the pipeline can deploy.** The workflow restarts the process, it does not create it, so until it exists the `deploy` job fails at `pm2 describe` with `[PM2][WARN] barwaqt-rider doesn't exist`.
+
+If `/var/www/rider.barwaqt.com` is not yet a Git checkout of `Barwaqt/rider_web` (for example it still holds the static Coming Soon files), clone into it so the deployment files are present:
+
+```bash
+cd /var/www/rider.barwaqt.com
+git clone https://github.com/Barwaqt/rider_web.git .
+```
+
 ## Nginx and HTTPS
 
-The checked-in config is an initial HTTP server block. If this domain already has an HTTPS configuration, merge the proxy settings into that existing block instead of replacing its certificates. Do not install a second server block for the same domain.
+### This VPS already serves `rider.barwaqt.com`
 
-For a new domain configuration:
+On `vmi3689694` the domain is already configured, so do **not** copy the checked-in config as a new server block:
+
+- DNS for `rider.barwaqt.com` already resolves to the VPS public IPv4.
+- Port 80 already serves a static **Coming Soon** page for this `server_name` from an existing Nginx server block (`text/html`, served from disk, no proxy).
+- Port 443 has **no certificate** for this domain. Requests currently fall through to the default server, which presents the `api.barwaqt.com` certificate, so `curl https://rider.barwaqt.com/` fails with a certificate-name error and returns the API's JSON.
+
+Locate the existing block and check its contents before editing:
+
+```bash
+grep -rn 'rider.barwaqt.com' /etc/nginx/sites-enabled/ /etc/nginx/conf.d/ 2>/dev/null
+```
+
+Then convert that block's `location /` to the proxy from `deploy/rider.barwaqt.com.conf` (replace any `root`/`try_files`/`index` static serving), keeping its `listen` and `server_name` lines. Back it up first:
+
+```bash
+cp /etc/nginx/sites-available/<file> /root/<file>.coming-soon.bak
+nginx -t && systemctl reload nginx
+curl -I http://rider.barwaqt.com/
+```
+
+Finish with Certbot so `:443` gains a certificate for this host, then re-run the deployment workflow. Move the Coming Soon page to another hostname if it is still wanted; keep its files, since the deployment's `rsync` never deletes non-source files.
+
+For a domain with no existing server block, use the checked-in config as-is:
 
 ```bash
 cd /var/www/rider.barwaqt.com
