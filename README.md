@@ -21,8 +21,8 @@ Open http://localhost:3003. Start the API on port 4000 first. `API_URL` is serve
 4. Admin opens Riders → Ready for dispatch, refreshes, selects this rider and assigns the order.
 5. Rider sees the assignment automatically within 15 seconds, or presses Refresh.
 6. Open the order, navigate to pickup, and confirm pickup.
-7. At the destination, enter the customer's six-digit delivery PIN. For COD, collect the displayed exact amount and confirm collection. For prepaid orders collect zero cash.
-8. Confirm delivery. The backend updates the order and makes the rider available.
+7. At the destination, attach a photo of the drop-off (building, gate or parcel). The app uploads it as delivery proof; no customer code is needed. For COD, collect the displayed exact amount and confirm collection. For prepaid orders collect zero cash.
+8. Confirm delivery. The backend stores the photo URL on the order, updates the status and makes the rider available.
 9. Admin records collected COD remittance in Finance before the rider can end their shift.
 
 Delivery failure requires a reason; dispatch must retry or return failed orders. Busy shifts cannot pause or end. Delivery windows and rider shifts are separate concepts.
